@@ -19,7 +19,7 @@ function App() {
       return (
         <div className="min-h-screen">
           <Header />
-          <div className="pt-28"> {/* Augmente le padding-top pour éviter que le header masque le contenu */}
+      <div className="pt-32"> {/* Augmente encore le padding-top pour que le titre soit bien visible */}
             {currentView === 'login' && (
               <LoginForm onLogin={handleLogin} />
             )}
