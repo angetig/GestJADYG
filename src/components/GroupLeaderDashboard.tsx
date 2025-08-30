@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { YouthData } from '../types';
+import { YouthData, EventRequest } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
 import { ExcelExportService } from '../utils/excelExport';
 import { AuthService } from '../utils/auth';
-import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet } from 'lucide-react';
+import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet, Plus, CheckCircle, XCircle, Clock, Edit, Crown } from 'lucide-react';
+import BureauManagement from './BureauManagement';
 
 interface GroupLeaderDashboardProps {
   onLogout: () => void;
@@ -14,6 +15,8 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
   const [selectedMember, setSelectedMember] = useState<YouthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<EventRequest[]>([]);
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Récupérer le nom du groupe avec plus de débogage
   const currentUser = AuthService.getCurrentUser();
@@ -26,12 +29,72 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
     if (groupName) {
       console.log('useEffect - Chargement des membres pour:', groupName);
       loadGroupMembers();
+      loadEvents();
     } else {
       console.log('useEffect - Pas de nom de groupe, utilisateur:', currentUser);
       setError('Nom du groupe non trouvé');
       setLoading(false);
     }
   }, [groupName]);
+
+  const loadEvents = () => {
+    // Mock events data
+    const mockEvents: EventRequest[] = [
+      {
+        id: '1',
+        title: 'Réunion de prière',
+        date: '2025-09-15',
+        time: '19:00',
+        location: 'Salle paroissiale',
+        objectives: 'Prière collective',
+        description: 'Réunion de prière pour la communauté',
+        status: 'approved',
+        groupName: groupName || '',
+        submittedAt: '2025-08-30T10:00:00Z',
+        adminComment: 'Bien organisé'
+      },
+      {
+        id: '2',
+        title: 'Sortie culturelle',
+        date: '2025-09-20',
+        time: '14:00',
+        location: 'Musée',
+        objectives: 'Découverte culturelle',
+        description: 'Visite du musée local',
+        status: 'pending',
+        groupName: groupName || '',
+        submittedAt: '2025-08-29T15:00:00Z'
+      },
+      {
+        id: '3',
+        title: 'Atelier formation',
+        date: '2025-09-10',
+        time: '18:00',
+        location: 'Centre communautaire',
+        objectives: 'Formation spirituelle',
+        description: 'Atelier sur la Bible',
+        status: 'draft',
+        groupName: groupName || '',
+        submittedAt: '2025-08-28T12:00:00Z'
+      }
+    ];
+    setEvents(mockEvents);
+  };
+
+  const getStatusDisplay = (status: EventRequest['status']) => {
+    switch (status) {
+      case 'draft':
+        return { text: 'Brouillon', icon: Edit, color: 'text-gray-600', bg: 'bg-gray-100' };
+      case 'pending':
+        return { text: 'En attente', icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100' };
+      case 'approved':
+        return { text: 'Validé', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' };
+      case 'rejected':
+        return { text: 'Refusé', icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' };
+      default:
+        return { text: status, icon: Clock, color: 'text-gray-600', bg: 'bg-gray-100' };
+    }
+  };
 
   const loadGroupMembers = async () => {
     if (!groupName) return;
@@ -123,6 +186,13 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
               </div>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => window.location.href = '/event-request'}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+              >
+                <Plus size={18} className="mr-2" />
+                Créer Événement
+              </button>
               <div className="bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg">
                 <span className="text-sm font-medium text-blue-800">Connecté en tant que responsable</span>
               </div>
@@ -146,8 +216,59 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Statistiques du groupe */}
+        {/* Navigation Tabs */}
         <div className="mb-6">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'overview'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Vue d'ensemble
+            </button>
+            <button
+              onClick={() => setActiveTab('events')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'events'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Événements
+            </button>
+            <button
+              onClick={() => setActiveTab('bureau')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'bureau'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Bureau
+            </button>
+            <button
+              onClick={() => setActiveTab('members')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'members'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Membres
+            </button>
+          </div>
+        </div>
+
+        {/* Content based on active tab */}
+        {activeTab === 'overview' && (
+          <div className="mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-lg mb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -181,8 +302,83 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
           </div>
           </div>
         </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {activeTab === 'events' && (
+          <div className="mb-6">
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold flex items-center justify-between">
+                <div className="flex items-center">
+                  <Calendar className="mr-2 text-purple-600" />
+                  Événements de votre groupe
+                </div>
+                <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {events.length} événement{events.length > 1 ? 's' : ''}
+                </span>
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nom de l'événement
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date prévue
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Commentaires Admin
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {events.map((event) => {
+                    const statusInfo = getStatusDisplay(event.status);
+                    const StatusIcon = statusInfo.icon;
+                    return (
+                      <tr key={event.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {event.title}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(event.date).toLocaleDateString('fr-FR')} à {event.time}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.color}`}>
+                            <StatusIcon size={14} className="mr-1" />
+                            {statusInfo.text}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {event.adminComment || event.rejectionComment || 'Aucun commentaire'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {events.length === 0 && (
+                <div className="p-8 text-center text-gray-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Aucun événement pour le moment</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        )}
+
+        {activeTab === 'bureau' && (
+          <BureauManagement groupName={groupName || ''} />
+        )}
+
+        {activeTab === 'members' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Liste des membres */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow">
@@ -382,6 +578,7 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

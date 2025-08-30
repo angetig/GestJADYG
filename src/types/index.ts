@@ -64,3 +64,37 @@ export interface AuthUser {
 }
 
 export const DEFAULT_PASSWORD = 'JADYG2026';
+
+// Event types
+export type EventStatus = 'draft' | 'pending' | 'approved' | 'rejected';
+
+export interface EventRequest {
+  id?: string;
+  title: string;
+  date: string; // ISO format
+  time: string; // HH:mm
+  location: string;
+  objectives: string;
+  budget?: number;
+  description: string;
+  status: EventStatus;
+  groupName: string;
+  submittedAt: string; // ISO date
+  rejectionComment?: string; // For rejected status
+  adminComment?: string; // Admin feedback/comments
+}
+
+export interface BureauMember {
+  id: string;
+  youthId: string; // Reference to the youth member
+  role: string; // Role defined by group leader (President, Secretary, etc.)
+  assignedAt: string; // ISO date when assigned to bureau
+}
+
+export interface Bureau {
+  id?: string;
+  groupName: string;
+  members: BureauMember[];
+  createdAt: string; // ISO date when bureau was created
+  updatedAt: string; // ISO date when bureau was last updated
+}
