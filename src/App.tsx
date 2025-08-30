@@ -22,6 +22,17 @@ function App() {
       setCurrentView('group_leader');
     }
   };
+    const HEADER_LOGO_LEFT = '/logo-left.png';
+    const HEADER_LOGO_RIGHT = '/logo-right.png';
+
+    function Header() {
+      return (
+        <header className="fixed top-0 left-0 w-full flex items-center justify-between bg-white shadow px-6 py-2 z-50">
+          <img src={HEADER_LOGO_LEFT} alt="Logo gauche" className="h-12 w-auto" />
+          <img src={HEADER_LOGO_RIGHT} alt="Logo droite" className="h-12 w-auto" />
+        </header>
+      );
+    }
 
   const handleLogout = () => {
     AuthService.logout();
@@ -55,6 +66,7 @@ function App() {
             </button>
           </div>
           <YouthRegistrationForm />
+          <Header />
         </>
       )}
       
