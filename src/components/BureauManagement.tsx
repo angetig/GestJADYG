@@ -28,29 +28,15 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
       const members = await GroupAssignmentService.getGroupMembers(groupName);
       setGroupMembers(members);
 
-      // Mock bureau data (in real app, this would come from API)
-      const mockBureau: Bureau = {
-        id: '1',
-        groupName,
-        members: [
-          {
-            id: '1',
-            youthId: members[0]?.id || '1',
-            role: 'Président',
-            assignedAt: '2025-01-15T10:00:00Z'
-          },
-          {
-            id: '2',
-            youthId: members[1]?.id || '2',
-            role: 'Secrétaire',
-            assignedAt: '2025-01-15T10:00:00Z'
-          }
-        ],
-        createdAt: '2025-01-15T10:00:00Z',
-        updatedAt: '2025-01-15T10:00:00Z'
-      };
-
-      setBureau(mockBureau);
+      // Load bureau data (in real app, this would come from API)
+      // For now, we'll check if there's existing bureau data in localStorage
+      const savedBureau = localStorage.getItem(`bureau_${groupName}`);
+      if (savedBureau) {
+        setBureau(JSON.parse(savedBureau));
+      } else {
+        // No bureau exists yet
+        setBureau(null);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -68,23 +54,27 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
       assignedAt: new Date().toISOString()
     };
 
+    let updatedBureau: Bureau;
+
     if (bureau) {
-      setBureau({
+      updatedBureau = {
         ...bureau,
         members: [...bureau.members, newBureauMember],
         updatedAt: new Date().toISOString()
-      });
+      };
     } else {
       // Create new bureau
-      const newBureau: Bureau = {
+      updatedBureau = {
         id: Date.now().toString(),
         groupName,
         members: [newBureauMember],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      setBureau(newBureau);
     }
+
+    setBureau(updatedBureau);
+    localStorage.setItem(`bureau_${groupName}`, JSON.stringify(updatedBureau));
 
     setShowAddModal(false);
     setSelectedMember(null);
@@ -99,11 +89,14 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
           : member
       );
 
-      setBureau({
+      const updatedBureau = {
         ...bureau,
         members: updatedMembers,
         updatedAt: new Date().toISOString()
-      });
+      };
+
+      setBureau(updatedBureau);
+      localStorage.setItem(`bureau_${groupName}`, JSON.stringify(updatedBureau));
     }
 
     setEditingMember(null);
@@ -113,11 +106,14 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
   const handleRemoveMember = (memberId: string) => {
     if (bureau && confirm('Êtes-vous sûr de vouloir retirer ce membre du bureau ?')) {
       const updatedMembers = bureau.members.filter(member => member.id !== memberId);
-      setBureau({
+      const updatedBureau = {
         ...bureau,
         members: updatedMembers,
         updatedAt: new Date().toISOString()
-      });
+      };
+
+      setBureau(updatedBureau);
+      localStorage.setItem(`bureau_${groupName}`, JSON.stringify(updatedBureau));
     }
   };
 
@@ -198,8 +194,8 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
                       </div>
 
                       {/* Member Info */}
-                      <div>
-                        <h4 className="font-medium text-gray-900">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-800">
                           {memberDetails?.nomPrenom || 'Membre inconnu'}
                         </h4>
                         {editingMember === member.id ? (
@@ -230,10 +226,20 @@ const BureauManagement: React.FC<BureauManagementProps> = ({ groupName }) => {
                             {member.role}
                           </p>
                         )}
-                        <div className="text-sm text-gray-500 mt-1">
-                          <div>Contact: {memberDetails?.contact1 || 'N/A'}</div>
+                        <div className="text-sm text-gray-500 mt-1 space-y-1">
+                          {memberDetails?.contact1 && (
+                            <div>📞 {memberDetails.contact1}</div>
+                          )}
                           {memberDetails?.contact2 && (
-                            <div>Contact 2: {memberDetails.contact2}</div>
+                            <div>📞 {memberDetails.contact2}</div>
+                          )}
+                          {memberDetails?.quartierResidence && (
+                            <div>📍 {memberDetails.quartierResidence}</div>
+                          )}
+                          {memberDetails && (
+                            <div className="text-xs text-gray-400">
+                              {memberDetails.genre}, {memberDetails.trancheAge} ans • {memberDetails.statutMatrimonial}
+                            </div>
                           )}
                         </div>
                       </div>

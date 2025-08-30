@@ -25,6 +25,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     loadData();
     loadEvents();
+    loadBureaux();
   }, []);
 
   const loadData = async () => {
@@ -81,6 +82,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       }
     ];
     setEvents(mockEvents);
+  };
+
+  const loadBureaux = () => {
+    // Load all bureaux from localStorage
+    const bureaux: any[] = [];
+    const groupNames = ['Disciples', 'Les Élus', 'Sel et Lumière', 'Porteurs de l\'Alliance', 'Bergerie du Maître'];
+
+    groupNames.forEach(groupName => {
+      const savedBureau = localStorage.getItem(`bureau_${groupName}`);
+      if (savedBureau) {
+        bureaux.push(JSON.parse(savedBureau));
+      }
+    });
+
+    setBureaux(bureaux);
   };
 
   const getStatusDisplay = (status: EventRequest['status']) => {
@@ -504,28 +520,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {/* Mock bureaux data */}
-            {[
-              {
-                id: '1',
-                groupName: 'Disciples',
-                members: [
-                  { role: 'Président', name: 'Jean Dupont' },
-                  { role: 'Secrétaire', name: 'Marie Martin' },
-                  { role: 'Trésorier', name: 'Pierre Durand' }
-                ],
-                createdAt: '2025-01-15T10:00:00Z'
-              },
-              {
-                id: '2',
-                groupName: 'Les Élus',
-                members: [
-                  { role: 'Président', name: 'Sophie Leroy' },
-                  { role: 'Secrétaire', name: 'Marc Dubois' }
-                ],
-                createdAt: '2025-01-20T14:00:00Z'
-              }
-            ].map((bureau) => (
+            {bureaux.map((bureau) => (
               <tr key={bureau.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {bureau.groupName}
@@ -848,59 +843,83 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
               <h4 className="text-lg font-semibold text-gray-800 mb-4">Membres du Bureau</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {selectedBureau.members.map((member: any, index: number) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <div className="flex items-start space-x-4">
-                      {/* Member Photo */}
-                      <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <span className="text-gray-400 text-lg font-medium">
-                          {member.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
+                {selectedBureau.members.map((member: any, index: number) => {
+                  // Find the actual member data using youthId
+                  const memberData = registrations.find(reg => reg.id === member.youthId);
 
-                      {/* Member Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center mb-2">
-                          <h5 className="text-lg font-semibold text-gray-900 mr-2">{member.name}</h5>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            <Crown className="w-3 h-3 mr-1" />
-                            {member.role}
-                          </span>
+                  return (
+                    <div key={member.id || index} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <div className="flex items-start space-x-4">
+                        {/* Member Photo */}
+                        <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {memberData?.photo ? (
+                            <img
+                              src={URL.createObjectURL(memberData.photo)}
+                              alt={memberData.nomPrenom}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-gray-400 text-lg font-medium">
+                              {(memberData?.nomPrenom || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                            </span>
+                          )}
                         </div>
 
-                        {/* Mock contact information */}
-                        <div className="space-y-2 text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                            </svg>
-                            +225 XX XX XX XX
+                        {/* Member Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center mb-2">
+                            <h5 className="text-lg font-semibold text-gray-900 mr-2">
+                              {memberData?.nomPrenom || 'Membre inconnu'}
+                            </h5>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              <Crown className="w-3 h-3 mr-1" />
+                              {member.role}
+                            </span>
                           </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            {member.name.toLowerCase().replace(' ', '.')}@example.com
-                          </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Abidjan, Côte d'Ivoire
-                          </div>
-                        </div>
 
-                        {/* Additional info */}
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="text-xs text-gray-500">
-                            Assigné le {new Date().toLocaleDateString('fr-FR')}
+                          {/* Real contact information */}
+                          <div className="space-y-2 text-sm text-gray-600">
+                            {memberData?.contact1 && (
+                              <div className="flex items-center">
+                                <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                {memberData.contact1}
+                              </div>
+                            )}
+                            {memberData?.contact2 && (
+                              <div className="flex items-center">
+                                <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                {memberData.contact2}
+                              </div>
+                            )}
+                            <div className="flex items-center">
+                              <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {memberData?.quartierResidence || 'Quartier non spécifié'}
+                            </div>
+                          </div>
+
+                          {/* Additional info */}
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="text-xs text-gray-500">
+                              Assigné le {new Date(member.assignedAt).toLocaleDateString('fr-FR')}
+                            </div>
+                            {memberData && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {memberData.genre}, {memberData.trancheAge} ans • {memberData.statutMatrimonial}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             <div className="px-6 py-4 border-t bg-gray-50">
