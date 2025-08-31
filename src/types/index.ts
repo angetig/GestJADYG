@@ -63,6 +63,40 @@ export interface AuthUser {
   isAuthenticated: boolean;
 }
 
+export interface GroupBureauMember {
+  id: string;
+  youthId: string; // Reference to the youth member
+  role: string; // President, Secretary, Treasurer, etc.
+  assignedAt: string;
+}
+
+export interface CentralBureauMember {
+  id: string;
+  nomPrenom: string;
+  role: string; // Président, Vice-Président, Trésorier, Secrétaire, etc.
+  contact?: string;
+  email?: string;
+  assignedAt: string;
+  isActive: boolean;
+}
+
+export interface GroupBureau {
+  id: string;
+  groupName: string;
+  members: GroupBureauMember[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CentralBureau {
+  id: string;
+  name: string;
+  description?: string;
+  members: CentralBureauMember[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const DEFAULT_PASSWORD = 'JADYG2026';
 
 // Event types
@@ -97,4 +131,91 @@ export interface Bureau {
   members: BureauMember[];
   createdAt: string; // ISO date when bureau was created
   updatedAt: string; // ISO date when bureau was last updated
+}
+
+export type NotificationType = 'event_submitted' | 'event_approved' | 'event_rejected' | 'admin_event_created';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  recipientType: 'admin' | 'group_leader';
+  recipientGroup?: string; // For group leaders
+  eventId?: string;
+  eventTitle?: string;
+  groupName?: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export type SocialCaseType = 'marriage' | 'death' | 'birth';
+
+export interface SocialCase {
+  id: string;
+  type: SocialCaseType;
+  reportedBy: string; // Group name that reported it
+  reportedAt: string;
+  status: 'pending' | 'validated' | 'duplicate' | 'rejected';
+
+  // Validation fields
+  validatedBy?: string; // Admin who validated/rejected
+  validatedAt?: string;
+  rejectionReason?: string;
+
+  // Common fields
+  description?: string;
+
+  // Marriage specific
+  husbandName?: string;
+  husbandGroup?: string; // Can be empty for non-members
+  wifeName?: string;
+  wifeGroup?: string; // Can be empty for non-members
+  marriageDate?: string;
+
+  // Death specific
+  deceasedName?: string;
+  relationship?: 'father' | 'mother' | 'brother' | 'sister' | 'child' | 'grandparent' | 'other';
+  affectedYouth?: Array<{
+    name: string;
+    group: string;
+  }>;
+  deathDate?: string;
+
+  // Birth specific
+  fatherName?: string;
+  fatherGroup?: string; // Can be empty for non-members
+  motherName?: string;
+  motherGroup?: string; // Can be empty for non-members
+  newbornName?: string;
+  birthDate?: string;
+
+  // Deduplication
+  duplicateOf?: string; // ID of the original case if this is a duplicate
+  linkedYouthIds: string[]; // IDs of youth members linked to this case
+}
+
+// Accounting types
+export type TransactionType = 'income' | 'expense';
+
+export interface FinancialTransaction {
+  id: string;
+  groupName: string; // Group that recorded the transaction
+  date: string; // ISO date
+  description: string; // Libellé
+  type: TransactionType;
+  amount: number; // Amount in FCFA
+  recordedBy: string; // Person who recorded it
+  recordedAt: string; // ISO timestamp
+  category?: string; // Optional category (cotisation, achat matériel, don, etc.)
+}
+
+export interface AccountingReport {
+  period: string; // Month/Year identifier
+  groupName: string;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  transactions: FinancialTransaction[];
+  generatedAt: string;
 }

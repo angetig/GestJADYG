@@ -38,6 +38,47 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type Database = {
   public: {
     Tables: {
+      financial_transactions: {
+        Row: {
+          id: string;
+          group_name: string;
+          date: string;
+          description: string;
+          type: 'income' | 'expense';
+          amount: number;
+          recorded_by: string;
+          recorded_at: string;
+          category: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_name: string;
+          date: string;
+          description: string;
+          type: 'income' | 'expense';
+          amount: number;
+          recorded_by: string;
+          recorded_at?: string;
+          category?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_name?: string;
+          date?: string;
+          description?: string;
+          type?: 'income' | 'expense';
+          amount?: number;
+          recorded_by?: string;
+          recorded_at?: string;
+          category?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       youth_registrations: {
         Row: {
           id: string;

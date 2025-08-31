@@ -3,8 +3,11 @@ import { YouthData, EventRequest } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
 import { ExcelExportService } from '../utils/excelExport';
 import { AuthService } from '../utils/auth';
-import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet, Plus, CheckCircle, XCircle, Clock, Edit, Crown } from 'lucide-react';
+import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet, Plus, CheckCircle, XCircle, Clock, Edit, Crown, Calculator } from 'lucide-react';
 import BureauManagement from './BureauManagement';
+import NotificationCenter from './NotificationCenter';
+import SocialCasesManager from './SocialCasesManager';
+import AccountingManager from './AccountingManager';
 
 interface GroupLeaderDashboardProps {
   onLogout: () => void;
@@ -17,6 +20,8 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventRequest[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showSocialCasesModal, setShowSocialCasesModal] = useState(false);
+  const [showAccountingModal, setShowAccountingModal] = useState(false);
   
   // Récupérer le nom du groupe avec plus de débogage
   const currentUser = AuthService.getCurrentUser();
@@ -185,7 +190,22 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <NotificationCenter recipientType="group_leader" groupName={groupName} />
+              <button
+                onClick={() => setShowSocialCasesModal(true)}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
+              >
+                <Heart size={18} className="mr-2" />
+                Cas Sociaux
+              </button>
+              <button
+                onClick={() => setShowAccountingModal(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              >
+                <Calculator size={18} className="mr-2" />
+                Comptabilité
+              </button>
               <button
                 onClick={() => window.location.href = '/event-request'}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
@@ -580,6 +600,16 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
         </div>
         )}
       </div>
+
+      {/* Social Cases Manager Modal */}
+      {showSocialCasesModal && (
+        <SocialCasesManager onClose={() => setShowSocialCasesModal(false)} />
+      )}
+
+      {/* Accounting Manager Modal */}
+      {showAccountingModal && (
+        <AccountingManager onClose={() => setShowAccountingModal(false)} />
+      )}
     </div>
   );
 };

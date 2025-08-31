@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { EventRequest } from '../types/event';
 import { Calendar, Clock, MapPin, Target, DollarSign, FileText, Save, Send, ArrowLeft } from 'lucide-react';
+import { notificationService } from '../utils/notificationService';
 
 interface Props {
   onSubmit: (event: EventRequest) => void;
@@ -31,7 +32,14 @@ const EventRequestForm: React.FC<Props> = ({ onSubmit, groupName }) => {
   const handleSubmit = (e: React.FormEvent, status: 'draft' | 'pending') => {
     e.preventDefault();
     const now = new Date().toISOString();
-    onSubmit({ ...form, submittedAt: now, status });
+    const eventData = { ...form, submittedAt: now, status };
+
+    // Create notification when event is submitted for validation
+    if (status === 'pending') {
+      notificationService.notifyEventSubmitted(eventData);
+    }
+
+    onSubmit(eventData);
     if (status === 'pending') {
       setForm({ ...initialState, groupName });
     }

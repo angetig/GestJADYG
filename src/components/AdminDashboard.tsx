@@ -3,7 +3,12 @@ import { YouthData, GroupStats, YOUTH_GROUPS, EventRequest } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
 import { ExcelExportService } from '../utils/excelExport';
 import { AuthService } from '../utils/auth';
-import { Users, BarChart3, UserCheck, Settings, LogOut, FileSpreadsheet, Download, UsersIcon, Eye, Calendar, CheckCircle, XCircle, Clock, Edit, Crown } from 'lucide-react';
+import { Users, BarChart3, UserCheck, Settings, LogOut, FileSpreadsheet, Download, UsersIcon, Eye, Calendar, CheckCircle, XCircle, Clock, Edit, Crown, Heart, Calculator } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
+import { notificationService } from '../utils/notificationService';
+import SocialCasesManager from './SocialCasesManager';
+import AccountingManager from './AccountingManager';
+import CentralBureauManager from './CentralBureauManager';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -21,6 +26,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [bureaux, setBureaux] = useState<any[]>([]);
   const [selectedBureau, setSelectedBureau] = useState<any | null>(null);
   const [showBureauModal, setShowBureauModal] = useState(false);
+  const [showSocialCasesModal, setShowSocialCasesModal] = useState(false);
+  const [showAccountingModal, setShowAccountingModal] = useState(false);
+  const [showCentralBureauModal, setShowCentralBureauModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -112,6 +120,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       default:
         return { text: status, icon: Clock, color: 'text-gray-600', bg: 'bg-gray-100' };
     }
+  };
+
+  const handleApproveEvent = (event: any) => {
+    // Update event status to approved
+    const updatedEvents = events.map(e =>
+      e.id === event.id ? { ...e, status: 'approved' as const } : e
+    );
+    setEvents(updatedEvents);
+
+    // Create notification for the group
+    notificationService.notifyEventApproved(event, event.groupName);
+
+    // Save to localStorage
+    localStorage.setItem('gestjadyg_events', JSON.stringify(updatedEvents));
+  };
+
+  const handleRejectEvent = (event: any) => {
+    const reason = prompt('Raison du refus (optionnel):');
+    if (reason === null) return; // User cancelled
+
+    // Update event status to rejected
+    const updatedEvents = events.map(e =>
+      e.id === event.id ? { ...e, status: 'rejected' as const, rejectionComment: reason } : e
+    );
+    setEvents(updatedEvents);
+
+    // Create notification for the group
+    notificationService.notifyEventRejected(event, event.groupName, reason);
+
+    // Save to localStorage
+    localStorage.setItem('gestjadyg_events', JSON.stringify(updatedEvents));
+  };
+
+  const handleAdminCreateEvent = (event: any) => {
+    // Create notification for all groups
+    notificationService.notifyAdminEventCreated(event);
   };
 
   const clearAllData = async () => {
@@ -475,8 +519,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       </button>
                       {event.status === 'pending' && (
                         <>
-                          <button className="text-green-600 hover:text-green-900">Valider</button>
-                          <button className="text-red-600 hover:text-red-900">Refuser</button>
+                          <button
+                            onClick={() => handleApproveEvent(event)}
+                            className="text-green-600 hover:text-green-900 px-3 py-1 rounded bg-green-50 hover:bg-green-100 transition-colors"
+                          >
+                            Valider
+                          </button>
+                          <button
+                            onClick={() => handleRejectEvent(event)}
+                            className="text-red-600 hover:text-red-900 px-3 py-1 rounded bg-red-50 hover:bg-red-100 transition-colors"
+                          >
+                            Refuser
+                          </button>
                         </>
                       )}
                     </div>
@@ -569,6 +623,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     { id: 'registrations', label: 'Inscriptions', icon: Users },
     { id: 'events', label: 'Événements', icon: Calendar },
     { id: 'bureaux', label: 'Bureaux', icon: Crown },
+    { id: 'central-bureau', label: 'Bureau Central', icon: Crown },
     { id: 'group-members', label: selectedGroup ? `Groupe ${selectedGroup}` : 'Membres par groupe', icon: UsersIcon },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
@@ -582,7 +637,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <h1 className="text-2xl font-bold text-gray-800">GestJADYG - Administration</h1>
               <p className="text-gray-600">Espace Administrateur</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <NotificationCenter recipientType="admin" />
+              <button
+                onClick={() => setShowSocialCasesModal(true)}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
+              >
+                <Heart size={18} className="mr-2" />
+                Cas Sociaux
+              </button>
+              <button
+                onClick={() => setShowAccountingModal(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              >
+                <Calculator size={18} className="mr-2" />
+                Comptabilité
+              </button>
+              <button
+                onClick={() => setShowCentralBureauModal(true)}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
+              >
+                <Crown size={18} className="mr-2" />
+                Bureau Central
+              </button>
               <button
                 onClick={() => window.location.href = '/event-request'}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
@@ -649,6 +726,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         {activeTab === 'registrations' && renderRegistrations()}
         {activeTab === 'events' && renderEvents()}
         {activeTab === 'bureaux' && renderBureaux()}
+        {activeTab === 'central-bureau' && <CentralBureauManager />}
         {activeTab === 'group-members' && renderGroupMembers()}
         {activeTab === 'settings' && (
           <div className="bg-white rounded-lg shadow p-6">
@@ -778,10 +856,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </button>
                 {selectedEvent.status === 'pending' && (
                   <>
-                    <button className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700">
+                    <button
+                      onClick={() => {
+                        handleApproveEvent(selectedEvent);
+                        setShowEventModal(false);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                    >
                       Valider
                     </button>
-                    <button className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700">
+                    <button
+                      onClick={() => {
+                        handleRejectEvent(selectedEvent);
+                        setShowEventModal(false);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                    >
                       Refuser
                     </button>
                   </>
@@ -931,6 +1021,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   Fermer
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Social Cases Manager Modal */}
+      {showSocialCasesModal && (
+        <SocialCasesManager onClose={() => setShowSocialCasesModal(false)} />
+      )}
+
+      {/* Accounting Manager Modal */}
+      {showAccountingModal && (
+        <AccountingManager onClose={() => setShowAccountingModal(false)} />
+      )}
+
+      {/* Central Bureau Manager Modal */}
+      {showCentralBureauModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-gray-800">Bureau Central JADYG</h3>
+              <button
+                onClick={() => setShowCentralBureauModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-[80vh] overflow-y-auto">
+              <CentralBureauManager />
             </div>
           </div>
         </div>
