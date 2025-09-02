@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FinancialTransaction, AccountingReport, YOUTH_GROUPS } from '../types';
-import { FileSpreadsheet, Download, Plus, Calculator, TrendingUp, TrendingDown } from 'lucide-react';
+import { FinancialTransaction, YOUTH_GROUPS } from '../types';
+import { FileSpreadsheet, Plus, Calculator, TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
 import { FinancialService } from '../utils/financialService';
+import { supabase } from '../lib/supabase';
 
 interface AccountingManagerProps {
   onClose: () => void;
@@ -12,6 +13,15 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [databaseStatus, setDatabaseStatus] = useState<{
+    hasData: boolean;
+    transactionCount: number;
+    lastTransaction?: string;
+  }>({ hasData: false, transactionCount: 0 });
+
+  const [selectedMonth, setSelectedMonth] = useState<string>('1');
+  const [selectedYear, setSelectedYear] = useState<string>('2025');
+  const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
   // Form states
   const [transactionForm, setTransactionForm] = useState({
@@ -51,10 +61,25 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
         transactionsData = await FinancialService.getTransactionsByGroup(userGroup);
       }
 
+      // Utiliser les données de Supabase uniquement (pas de données d'exemple)
       setTransactions(transactionsData);
+
+      // Mettre à jour le statut de la base de données
+      const hasData = transactionsData.length > 0;
+      const lastTransaction = hasData
+        ? new Date(Math.max(...transactionsData.map(t => new Date(t.date).getTime()))).toLocaleDateString('fr-FR')
+        : undefined;
+
+      setDatabaseStatus({
+        hasData,
+        transactionCount: transactionsData.length,
+        lastTransaction
+      });
     } catch (error) {
       console.error('Erreur lors du chargement des transactions:', error);
+      // En cas d'erreur, utiliser un tableau vide (pas de données d'exemple)
       setTransactions([]);
+      setDatabaseStatus({ hasData: false, transactionCount: 0 });
     } finally {
       setLoading(false);
     }
@@ -178,6 +203,41 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
     link.click();
   };
 
+  const clearAllTransactions = async () => {
+    if (!confirm('⚠️ ATTENTION: Cette action va supprimer TOUTES les transactions de TOUS les groupes. Cette action est IRRÉVERSIBLE. Êtes-vous sûr de vouloir continuer ?')) {
+      return;
+    }
+
+    if (!confirm('🔴 DERNIER AVERTISSEMENT: Toutes les données financières seront perdues. Confirmer la suppression ?')) {
+      return;
+    }
+
+    try {
+      // Supprimer toutes les transactions de Supabase
+      const { error } = await supabase
+        .from('financial_transactions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Supprimer tous les enregistrements
+
+      if (error) {
+        console.error('Erreur lors de la suppression:', error);
+        alert('Erreur lors de la suppression des données');
+        return;
+      }
+
+      // Recharger les transactions (devrait être vide)
+      await loadTransactions();
+
+      // Réinitialiser le statut de la base de données
+      setDatabaseStatus({ hasData: false, transactionCount: 0 });
+
+      alert('✅ Toutes les transactions ont été supprimées. Le solde est maintenant à 0.');
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression des données');
+    }
+  };
+
   const filteredTransactions = getFilteredTransactions();
   const currentBalance = calculateBalance(filteredTransactions);
 
@@ -269,18 +329,46 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
           </div>
 
           {/* Information sur les données */}
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className={`mb-6 border rounded-lg p-4 ${
+            !databaseStatus.hasData
+              ? 'bg-green-50 border-green-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}>
             <div className="flex items-start">
-              <div className="text-blue-600 mr-3">
+              <div className={`${!databaseStatus.hasData ? 'text-green-600' : 'text-blue-600'} mr-3`}>
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-blue-800 mb-1">Données Réelles Stockées</h4>
-                <p className="text-sm text-blue-700">
-                  Toutes les transactions sont maintenant sauvegardées dans Supabase et sont persistantes.
-                  {isAdmin ? ' Vous voyez les données de tous les groupes.' : ' Vous voyez uniquement les données de votre groupe.'}
+                <h4 className="text-sm font-medium mb-1">
+                  {!databaseStatus.hasData
+                    ? '✅ Données Réelles - Base Vide'
+                    : '📊 Données Réelles - Transactions Existantes'
+                  }
+                </h4>
+                <p className="text-sm">
+                  {!databaseStatus.hasData ? (
+                    <span className="text-green-700">
+                      Le système utilise Supabase avec des données réelles. La base est vide (solde = 0).
+                      {isAdmin ? ' Vous voyez les données de tous les groupes.' : ' Vous voyez uniquement les données de votre groupe.'}
+                    </span>
+                  ) : (
+                    <span className="text-blue-700">
+                      <strong>{databaseStatus.transactionCount} transaction{databaseStatus.transactionCount > 1 ? 's' : ''}</strong> trouvée{databaseStatus.transactionCount > 1 ? 's' : ''}.
+                      {databaseStatus.lastTransaction && (
+                        <span className="block text-xs mt-1">
+                          Dernière transaction: {databaseStatus.lastTransaction}
+                        </span>
+                      )}
+                      {isAdmin ? ' Données de tous les groupes.' : ' Données de votre groupe uniquement.'}
+                      {isAdmin && (
+                        <span className="block mt-1 text-xs text-red-600">
+                          💡 Pour remettre le solde à 0, utilisez le bouton "Vider Base" (⚠️ Irréversible)
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -306,18 +394,35 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
           )}
 
           {/* Current Balance Display */}
-          <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white p-4 rounded-lg mb-6">
+          <div className={`p-4 rounded-lg mb-6 ${
+            !databaseStatus.hasData
+              ? 'bg-gradient-to-r from-green-500 to-blue-600 text-white'
+              : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-lg font-semibold">Solde Actuel</h4>
-                <p className="text-green-100">
+                <p className="opacity-90">
                   {isAdmin && selectedGroup !== 'all' ? `Groupe ${selectedGroup}` : isAdmin ? 'Tous les groupes' : `Groupe ${userGroup || 'Non défini'}`}
                 </p>
+                {!databaseStatus.hasData ? (
+                  <p className="text-xs opacity-80 mt-1">
+                    ✅ Base vide - Solde nul normal
+                  </p>
+                ) : (
+                  <p className="text-xs opacity-80 mt-1">
+                    📊 Basé sur {databaseStatus.transactionCount} transaction{databaseStatus.transactionCount > 1 ? 's' : ''}
+                    {databaseStatus.lastTransaction && (
+                      <span className="block">Dernière: {databaseStatus.lastTransaction}</span>
+                    )}
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold">{currentBalance.toLocaleString('fr-FR')} FCFA</p>
-                <p className={`text-sm ${currentBalance >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                <p className="text-sm opacity-90">
                   {currentBalance >= 0 ? '✓ Solde positif' : '⚠ Solde négatif'}
+                  {!databaseStatus.hasData && ' (Base vide)'}
                 </p>
               </div>
             </div>
@@ -329,6 +434,11 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
               <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                 <Calculator className="w-5 h-5 mr-2 text-blue-600" />
                 Soldes par Groupe
+                {transactions.length === 0 && (
+                  <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    Base vide - Soldes nuls normaux
+                  </span>
+                )}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(getGroupBalances()).map(([groupName, balance]) => (
@@ -337,6 +447,9 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                       <div>
                         <h5 className="font-medium text-gray-800">{groupName}</h5>
                         <p className="text-sm text-gray-600">Solde actuel</p>
+                        {balance === 0 && transactions.length === 0 && (
+                          <p className="text-xs text-green-600 mt-1">💡 Base vide</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className={`text-lg font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -344,6 +457,7 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                         </p>
                         <p className={`text-xs ${balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           {balance >= 0 ? '✓ Positif' : '⚠ Négatif'}
+                          {balance === 0 && transactions.length === 0 && ' (Vide)'}
                         </p>
                       </div>
                     </div>
@@ -439,6 +553,16 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                     <FileSpreadsheet size={18} className="mr-2" />
                     Exporter Excel
                   </button>
+                  {isAdmin && (
+                    <button
+                      onClick={clearAllTransactions}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                      title="⚠️ Supprimer TOUTES les transactions"
+                    >
+                      <Trash2 size={18} className="mr-2" />
+                      Vider Base
+                    </button>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -506,8 +630,40 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                   {filteredTransactions.length === 0 && (
                     <div className="p-8 text-center text-gray-500">
                       <Calculator className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune transaction</h3>
-                      <p className="text-gray-600">Commencez par enregistrer une transaction</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        {!databaseStatus.hasData ? 'Base de données vide' : 'Aucune transaction trouvée'}
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        {!databaseStatus.hasData ? (
+                          <>
+                            Le système utilise des données réelles. Le solde commence à 0.
+                            <br />
+                            Ajoutez votre première transaction pour commencer.
+                          </>
+                        ) : (
+                          <>
+                            Aucune transaction ne correspond aux filtres sélectionnés.
+                            <br />
+                            Essayez de changer les filtres ou ajoutez une nouvelle transaction.
+                          </>
+                        )}
+                      </p>
+                      <div className={`border rounded-lg p-4 max-w-md mx-auto ${
+                        !databaseStatus.hasData
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-blue-50 border-blue-200'
+                      }`}>
+                        <p className={`text-sm ${
+                          !databaseStatus.hasData ? 'text-green-800' : 'text-blue-800'
+                        }`}>
+                          <strong>Solde actuel : {currentBalance.toLocaleString('fr-FR')} FCFA</strong>
+                          <br />
+                          {!databaseStatus.hasData
+                            ? 'Base de données vide = solde nul (normal)'
+                            : `${databaseStatus.transactionCount} transaction${databaseStatus.transactionCount > 1 ? 's' : ''} dans la base`
+                          }
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -569,7 +725,7 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Mois</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                       {Array.from({ length: 12 }, (_, i) => (
                         <option key={i + 1} value={i + 1}>
                           {new Date(0, i).toLocaleDateString('fr-FR', { month: 'long' })}
@@ -579,7 +735,7 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Année</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                       {Array.from({ length: 5 }, (_, i) => (
                         <option key={2025 + i} value={2025 + i}>
                           {2025 + i}
@@ -588,12 +744,34 @@ const AccountingManager: React.FC<AccountingManagerProps> = ({ onClose }) => {
                     </select>
                   </div>
                   <div className="flex items-end">
-                    <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button onClick={() => { const report = generateMonthlyReport(selectedMonth, selectedYear); setMonthlyReport(report); }} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                       Générer Rapport
                     </button>
                   </div>
                 </div>
               </div>
+
+              {/* Monthly Report Display */}
+              {monthlyReport && (
+                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                  <h5 className="text-lg font-semibold text-gray-800 mb-4">Rapport Mensuel - {monthlyReport.period}</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <p className="text-green-600 font-semibold">Total Recettes</p>
+                      <p className="text-2xl font-bold">{monthlyReport.totalIncome.toLocaleString('fr-FR')} FCFA</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-red-600 font-semibold">Total Dépenses</p>
+                      <p className="text-2xl font-bold">{monthlyReport.totalExpenses.toLocaleString('fr-FR')} FCFA</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-semibold ${monthlyReport.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>Solde</p>
+                      <p className="text-2xl font-bold">{monthlyReport.balance.toLocaleString('fr-FR')} FCFA</p>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-gray-600">Nombre de transactions: {monthlyReport.transactions.length}</p>
+                </div>
+              )}
 
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

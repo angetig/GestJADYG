@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { YouthData } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
-import { User, Heart, Briefcase, GraduationCap, Church, MessageCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import { User, Heart, Briefcase, GraduationCap, Church, MessageCircle, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
+import QRCodeScanner from './QRCodeScanner';
 
 const YouthRegistrationForm: React.FC = () => {
   const [formData, setFormData] = useState<Partial<YouthData>>({});
   const [currentSection, setCurrentSection] = useState(0);
   const [result, setResult] = useState<{ success: boolean; message: string; group?: string } | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const sections = [
     { title: 'Informations Personnelles', icon: User },
@@ -446,12 +448,22 @@ const YouthRegistrationForm: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">GestJADYG - Inscription</h1>
+          <div className="flex justify-center items-center mb-4">
+            <h1 className="text-3xl font-bold text-gray-800 mr-4">GestJADYG - Inscription</h1>
+            <button
+              onClick={() => setShowQRScanner(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center shadow-lg"
+              title="Scanner un QR code pour confirmer votre présence"
+            >
+              <QrCode size={20} className="mr-2" />
+              Scanner QR
+            </button>
+          </div>
           <p className="text-gray-600 mb-4">
             Ce formulaire vous permet de vous inscrire et d'être automatiquement affecté à un groupe de jeunesse.
           </p>
           <p className="text-sm text-gray-500">
-            Nous avons 10 Groupes de Jeunesses : "Disciples", "Les Élus", "Sel et Lumière", "Porteurs de l'Alliance", 
+            Nous avons 10 Groupes de Jeunesses : "Disciples", "Les Élus", "Sel et Lumière", "Porteurs de l'Alliance",
             "Bergerie du Maître", "Vases d'Honneur", "Sacerdoce Royal", "Flambeaux", "Serviteurs Fidèles", "Héritiers du Royaume"
           </p>
         </div>
@@ -526,6 +538,11 @@ const YouthRegistrationForm: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* QR Code Scanner Modal */}
+      {showQRScanner && (
+        <QRCodeScanner onClose={() => setShowQRScanner(false)} />
+      )}
     </div>
   );
 };

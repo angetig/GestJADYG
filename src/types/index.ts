@@ -9,25 +9,27 @@ export interface YouthData {
   quartierResidence: string;
   contact1: string;
   contact2?: string;
-  
+
   // Statut matrimonial
   statutMatrimonial: 'Marié(e)' | 'Célibataire' | 'Veuf(ve)' | 'Fiancé(e)' | 'Concubinage';
-  
+
   // Situation professionnelle
   situationProfessionnelle: 'Étudiant(e)' | 'Travailleur' | 'Sans emploi';
   typeTravail?: 'Public' | 'Privé' | 'Entrepreneur' | 'Je vais au cours';
   niveauEtude: 'Aucun' | 'Primaire' | 'Secondaire' | 'Formation qualifiante' | 'Bac' | 'BTS' | 'Licence' | 'Master' | 'Doctorat' | 'Formation professionnelle' | 'DUT';
-  
+
   // Situation Spirituelle
   anneeConversion: '0-3' | '4-7' | '7-10' | '10-20' | '20-40' | '40+';
   baptemeEau: 'OUI' | 'NON';
   baptemeSaintEsprit: 'OUI' | 'NON';
-  
+
   // Message
   messageJeunesse?: string;
-  
+
   // Groupe assigné
   groupeAssigne?: string;
+  matricule?: string; // Matricule unique (ex: 25A3, 25B7)
+  dateAffectation?: Date; // Date d'affectation dans le groupe
   dateInscription: Date;
 }
 
@@ -98,6 +100,34 @@ export interface CentralBureau {
 }
 
 export const DEFAULT_PASSWORD = 'JADYG2026';
+
+// QR Code Attendance types
+export interface QRCode {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventTime: string;
+  groupName: string;
+  qrCode: string; // Base64 encoded QR code data
+  expiresAt: string; // ISO date
+  createdAt: string;
+  createdBy: string; // Admin or group leader name
+  isActive: boolean;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  qrCodeId: string;
+  userId: string;
+  userName: string;
+  userGroup: string;
+  eventId: string;
+  eventTitle: string;
+  scannedAt: string; // ISO date
+  location?: string; // GPS coordinates if available
+  deviceInfo?: string;
+}
 
 // Event types
 export type EventStatus = 'draft' | 'pending' | 'approved' | 'rejected';

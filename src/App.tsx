@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import AdminDashboard from './components/AdminDashboard';
 import GroupLeaderDashboard from './components/GroupLeaderDashboard';
 import LoginForm from './components/LoginForm';
 import YouthRegistrationForm from './components/YouthRegistrationForm';
+import AttendanceScanner from './components/AttendanceScanner';
 import { AuthService } from './utils/auth';
 import { AuthUser } from './types';
-import { Users, Settings, Shield } from 'lucide-react';
+import { Users, Shield, QrCode } from 'lucide-react';
 
 const HEADER_LOGO_LEFT = '/logo-left.png';
 const HEADER_LOGO_RIGHT = '/logo-right.png';
@@ -22,6 +23,7 @@ function Header() {
 function App() {
   const [currentView, setCurrentView] = useState<'form' | 'admin' | 'group_leader' | 'login'>('form');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(AuthService.getCurrentUser());
+  const [showAttendanceScanner, setShowAttendanceScanner] = useState(false);
 
   const handleLogin = (user: AuthUser) => {
     console.log('handleLogin appelé avec:', user);
@@ -58,7 +60,16 @@ function App() {
         )}
         {currentView === 'form' && (
           <>
-            <div className="fixed top-16 right-4 z-10">
+            <div className="fixed top-16 right-4 z-10 flex gap-2">
+              {currentUser?.role === 'group_leader' && (
+                <button
+                  onClick={() => setShowAttendanceScanner(true)}
+                  className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+                  title="Scanner de présence"
+                >
+                  <QrCode size={20} />
+                </button>
+              )}
               <button
                 onClick={handleAdminAccess}
                 className="bg-gray-800 text-white p-3 rounded-full shadow-lg hover:bg-gray-700 transition-colors"
@@ -97,6 +108,11 @@ function App() {
             </div>
             <GroupLeaderDashboard onLogout={handleLogout} />
           </>
+        )}
+
+        {/* Attendance Scanner Modal */}
+        {showAttendanceScanner && (
+          <AttendanceScanner onClose={() => setShowAttendanceScanner(false)} />
         )}
       </div>
     </>

@@ -3,11 +3,14 @@ import { YouthData, EventRequest } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
 import { ExcelExportService } from '../utils/excelExport';
 import { AuthService } from '../utils/auth';
-import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet, Plus, CheckCircle, XCircle, Clock, Edit, Crown, Calculator } from 'lucide-react';
+import { Users, UserCheck, Calendar, Phone, MapPin, Briefcase, GraduationCap, Heart, Church, LogOut, FileSpreadsheet, Plus, CheckCircle, XCircle, Clock, Edit, Crown, Calculator, QrCode, Hash } from 'lucide-react';
 import BureauManagement from './BureauManagement';
 import NotificationCenter from './NotificationCenter';
 import SocialCasesManager from './SocialCasesManager';
 import AccountingManager from './AccountingManager';
+import QRCodeScanner from './QRCodeScanner';
+import QRCodeDisplay from './QRCodeDisplay';
+import AttendanceStats from './AttendanceStats';
 
 interface GroupLeaderDashboardProps {
   onLogout: () => void;
@@ -22,6 +25,7 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
   const [activeTab, setActiveTab] = useState('overview');
   const [showSocialCasesModal, setShowSocialCasesModal] = useState(false);
   const [showAccountingModal, setShowAccountingModal] = useState(false);
+  const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   
   // Récupérer le nom du groupe avec plus de débogage
   const currentUser = AuthService.getCurrentUser();
@@ -207,6 +211,13 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
                 Comptabilité
               </button>
               <button
+                onClick={() => setShowQRScannerModal(true)}
+                className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors flex items-center"
+              >
+                <QrCode size={18} className="mr-2" />
+                Scanner QR
+              </button>
+              <button
                 onClick={() => window.location.href = '/event-request'}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
               >
@@ -282,6 +293,28 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
             >
               <UserCheck className="w-4 h-4 mr-2" />
               Membres
+            </button>
+            <button
+              onClick={() => setActiveTab('qr-codes')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'qr-codes'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <QrCode className="w-4 h-4 mr-2" />
+              QR Codes
+            </button>
+            <button
+              onClick={() => setActiveTab('attendance-stats')}
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'attendance-stats'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Statistiques
             </button>
           </div>
         </div>
@@ -397,6 +430,38 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
           <BureauManagement groupName={groupName || ''} />
         )}
 
+        {activeTab === 'qr-codes' && (
+          <div className="mb-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <QrCode className="mr-2 text-blue-600" />
+                  QR Codes de Pointage
+                </h3>
+              </div>
+              <div className="p-6">
+                <QRCodeDisplay groupName={groupName} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'attendance-stats' && (
+          <div className="mb-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <Users className="mr-2 text-green-600" />
+                  Statistiques de Présence
+                </h3>
+              </div>
+              <div className="p-6">
+                <AttendanceStats groupName={groupName} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'members' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Liste des membres */}
@@ -465,6 +530,12 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
                               <span className="mr-4">{member.trancheAge} ans</span>
                               <span>{member.statutMatrimonial}</span>
                             </div>
+                            {member.matricule && (
+                              <div className="flex items-center text-xs text-blue-600 mt-1">
+                                <Hash size={12} className="mr-1" />
+                                Matricule: {member.matricule}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -578,6 +649,20 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
                           <Calendar className="w-4 h-4 mr-2 text-gray-400" />
                           <span>Inscrit le {new Date(selectedMember.dateInscription).toLocaleDateString()}</span>
                         </div>
+
+                        {selectedMember.matricule && (
+                          <div className="flex items-center text-sm">
+                            <Hash className="w-4 h-4 mr-2 text-blue-400" />
+                            <span>Matricule: <strong className="text-blue-600">{selectedMember.matricule}</strong></span>
+                          </div>
+                        )}
+
+                        {selectedMember.dateAffectation && (
+                          <div className="flex items-center text-sm">
+                            <Users className="w-4 h-4 mr-2 text-green-400" />
+                            <span>Affecté le {new Date(selectedMember.dateAffectation).toLocaleDateString()}</span>
+                          </div>
+                        )}
                         
                         {selectedMember.messageJeunesse && (
                           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -609,6 +694,11 @@ const GroupLeaderDashboard: React.FC<GroupLeaderDashboardProps> = ({ onLogout })
       {/* Accounting Manager Modal */}
       {showAccountingModal && (
         <AccountingManager onClose={() => setShowAccountingModal(false)} />
+      )}
+
+      {/* QR Code Scanner Modal */}
+      {showQRScannerModal && (
+        <QRCodeScanner onClose={() => setShowQRScannerModal(false)} />
       )}
     </div>
   );

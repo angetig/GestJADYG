@@ -3,12 +3,16 @@ import { YouthData, GroupStats, YOUTH_GROUPS, EventRequest } from '../types';
 import { GroupAssignmentService } from '../utils/groupAssignment';
 import { ExcelExportService } from '../utils/excelExport';
 import { AuthService } from '../utils/auth';
-import { Users, BarChart3, UserCheck, Settings, LogOut, FileSpreadsheet, Download, UsersIcon, Eye, Calendar, CheckCircle, XCircle, Clock, Edit, Crown, Heart, Calculator } from 'lucide-react';
+import { EventService } from '../utils/eventService';
+import { Users, BarChart3, UserCheck, Settings, LogOut, FileSpreadsheet, Download, UsersIcon, Eye, Calendar, CheckCircle, XCircle, Clock, Edit, Crown, Heart, Calculator, QrCode, Hash, PieChart } from 'lucide-react';
 import NotificationCenter from './NotificationCenter';
 import { notificationService } from '../utils/notificationService';
 import SocialCasesManager from './SocialCasesManager';
 import AccountingManager from './AccountingManager';
 import CentralBureauManager from './CentralBureauManager';
+import QRCodeManager from './QRCodeManager';
+import MatriculeManager from './MatriculeManager';
+import EventAttendanceStats from './EventAttendanceStats';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -29,6 +33,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [showSocialCasesModal, setShowSocialCasesModal] = useState(false);
   const [showAccountingModal, setShowAccountingModal] = useState(false);
   const [showCentralBureauModal, setShowCentralBureauModal] = useState(false);
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
+  const [showMatriculeModal, setShowMatriculeModal] = useState(false);
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [newEventData, setNewEventData] = useState({
+    title: '',
+    date: '',
+    time: '',
+    location: '',
+    objectives: '',
+    description: '',
+    budget: '',
+    groupName: 'Tous les groupes'
+  });
 
   useEffect(() => {
     loadData();
@@ -47,49 +64,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const loadEvents = () => {
-    // Mock events data for all groups
-    const mockEvents: EventRequest[] = [
-      {
-        id: '1',
-        title: 'Réunion de prière',
-        date: '2025-09-15',
-        time: '19:00',
-        location: 'Salle paroissiale',
-        objectives: 'Prière collective',
-        description: 'Réunion de prière pour la communauté',
-        status: 'approved',
-        groupName: 'Disciples',
-        submittedAt: '2025-08-30T10:00:00Z',
-        adminComment: 'Bien organisé'
-      },
-      {
-        id: '2',
-        title: 'Sortie culturelle',
-        date: '2025-09-20',
-        time: '14:00',
-        location: 'Musée',
-        objectives: 'Découverte culturelle',
-        description: 'Visite du musée local',
-        status: 'pending',
-        groupName: 'Les Élus',
-        submittedAt: '2025-08-29T15:00:00Z'
-      },
-      {
-        id: '3',
-        title: 'Atelier formation',
-        date: '2025-09-10',
-        time: '18:00',
-        location: 'Centre communautaire',
-        objectives: 'Formation spirituelle',
-        description: 'Atelier sur la Bible',
-        status: 'rejected',
-        groupName: 'Sel et Lumière',
-        submittedAt: '2025-08-28T12:00:00Z',
-        rejectionComment: 'Budget trop élevé, ajuster à 50000 FCFA'
-      }
-    ];
-    setEvents(mockEvents);
+  const loadEvents = async () => {
+    try {
+      const events = await EventService.getAllEvents();
+      setEvents(events);
+    } catch (error) {
+      console.error('Erreur lors du chargement des événements:', error);
+      // Fallback to empty array if service fails
+      setEvents([]);
+    }
   };
 
   const loadBureaux = () => {
@@ -122,40 +105,101 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleApproveEvent = (event: any) => {
-    // Update event status to approved
-    const updatedEvents = events.map(e =>
-      e.id === event.id ? { ...e, status: 'approved' as const } : e
-    );
-    setEvents(updatedEvents);
+  const handleApproveEvent = async (event: any) => {
+    try {
+      const success = await EventService.updateEventStatus(event.id, 'approved');
+      if (success) {
+        // Update local state
+        const updatedEvents = events.map(e =>
+          e.id === event.id ? { ...e, status: 'approved' as const } : e
+        );
+        setEvents(updatedEvents);
 
-    // Create notification for the group
-    notificationService.notifyEventApproved(event, event.groupName);
-
-    // Save to localStorage
-    localStorage.setItem('gestjadyg_events', JSON.stringify(updatedEvents));
+        // Create notification for the group
+        notificationService.notifyEventApproved(event, event.groupName);
+        alert('Événement approuvé avec succès !');
+      } else {
+        alert('Erreur lors de l\'approbation de l\'événement');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'approbation:', error);
+      alert('Erreur lors de l\'approbation de l\'événement');
+    }
   };
 
-  const handleRejectEvent = (event: any) => {
+  const handleRejectEvent = async (event: any) => {
     const reason = prompt('Raison du refus (optionnel):');
     if (reason === null) return; // User cancelled
 
-    // Update event status to rejected
-    const updatedEvents = events.map(e =>
-      e.id === event.id ? { ...e, status: 'rejected' as const, rejectionComment: reason } : e
-    );
-    setEvents(updatedEvents);
+    try {
+      const success = await EventService.updateEventStatus(event.id, 'rejected', undefined, reason);
+      if (success) {
+        // Update local state
+        const updatedEvents = events.map(e =>
+          e.id === event.id ? { ...e, status: 'rejected' as const, rejectionComment: reason } : e
+        );
+        setEvents(updatedEvents);
 
-    // Create notification for the group
-    notificationService.notifyEventRejected(event, event.groupName, reason);
-
-    // Save to localStorage
-    localStorage.setItem('gestjadyg_events', JSON.stringify(updatedEvents));
+        // Create notification for the group
+        notificationService.notifyEventRejected(event, event.groupName, reason);
+        alert('Événement refusé avec succès !');
+      } else {
+        alert('Erreur lors du refus de l\'événement');
+      }
+    } catch (error) {
+      console.error('Erreur lors du refus:', error);
+      alert('Erreur lors du refus de l\'événement');
+    }
   };
 
   const handleAdminCreateEvent = (event: any) => {
     // Create notification for all groups
     notificationService.notifyAdminEventCreated(event);
+  };
+
+  const handleCreateEvent = async () => {
+    if (!newEventData.title || !newEventData.date || !newEventData.time || !newEventData.location) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      const eventData = {
+        title: newEventData.title,
+        date: newEventData.date,
+        time: newEventData.time,
+        location: newEventData.location,
+        objectives: newEventData.objectives,
+        description: newEventData.description,
+        budget: newEventData.budget ? parseInt(newEventData.budget) : undefined,
+        status: 'approved' as const,
+        groupName: newEventData.groupName,
+        submittedAt: new Date().toISOString()
+      };
+
+      const newEvent = await EventService.createEvent(eventData);
+      if (newEvent) {
+        setEvents([...events, newEvent]);
+        setShowCreateEventModal(false);
+        setNewEventData({
+          title: '',
+          date: '',
+          time: '',
+          location: '',
+          objectives: '',
+          description: '',
+          budget: '',
+          groupName: 'Tous les groupes'
+        });
+        notificationService.notifyAdminEventCreated(newEvent);
+        alert('Événement créé avec succès !');
+      } else {
+        alert('Erreur lors de la création de l\'événement');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création:', error);
+      alert('Erreur lors de la création de l\'événement');
+    }
   };
 
   const clearAllData = async () => {
@@ -622,6 +666,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
     { id: 'registrations', label: 'Inscriptions', icon: Users },
     { id: 'events', label: 'Événements', icon: Calendar },
+    { id: 'event-stats', label: 'Statistiques Événements', icon: PieChart },
     { id: 'bureaux', label: 'Bureaux', icon: Crown },
     { id: 'central-bureau', label: 'Bureau Central', icon: Crown },
     { id: 'group-members', label: selectedGroup ? `Groupe ${selectedGroup}` : 'Membres par groupe', icon: UsersIcon },
@@ -629,102 +674,197 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+      {/* Modern Header */}
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 shadow-xl">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">GestJADYG - Administration</h1>
-              <p className="text-gray-600">Espace Administrateur</p>
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+                <Crown className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white tracking-tight">GestJADYG</h1>
+                <p className="text-blue-100 font-medium">Administration & Gestion</p>
+              </div>
             </div>
-            <div className="flex gap-2 items-center">
-              <NotificationCenter recipientType="admin" />
-              <button
-                onClick={() => setShowSocialCasesModal(true)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-              >
-                <Heart size={18} className="mr-2" />
-                Cas Sociaux
-              </button>
-              <button
-                onClick={() => setShowAccountingModal(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-              >
-                <Calculator size={18} className="mr-2" />
-                Comptabilité
-              </button>
-              <button
-                onClick={() => setShowCentralBureauModal(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
-              >
-                <Crown size={18} className="mr-2" />
-                Bureau Central
-              </button>
-              <button
-                onClick={() => window.location.href = '/event-request'}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
-              >
-                <Calendar size={18} className="mr-2" />
-                Créer Événement
-              </button>
-              <button
-                onClick={exportData}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-              >
-                <FileSpreadsheet size={18} className="mr-2" />
-                Excel
-              </button>
-              <button
-                onClick={exportJSON}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                <Download size={18} className="mr-2" />
-                JSON
-              </button>
-              <button
-                onClick={clearAllData}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Effacer tout
-              </button>
-              <button
-                onClick={onLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-              >
-                <LogOut size={18} className="mr-2" />
-                Déconnexion
-              </button>
+            <div className="flex items-center space-x-3">
+              {/* Notification Center */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2">
+                <NotificationCenter recipientType="admin" />
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowSocialCasesModal(true)}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-red-300/50"
+                  title="Cas Sociaux"
+                >
+                  <Heart size={16} />
+                </button>
+                <button
+                  onClick={() => setShowAccountingModal(true)}
+                  className="bg-green-500/20 hover:bg-green-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-green-300/50"
+                  title="Comptabilité"
+                >
+                  <Calculator size={16} />
+                </button>
+                <button
+                  onClick={() => setShowCentralBureauModal(true)}
+                  className="bg-indigo-500/20 hover:bg-indigo-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-indigo-300/50"
+                  title="Bureau Central"
+                >
+                  <Crown size={16} />
+                </button>
+                <button
+                  onClick={() => setShowQRCodeModal(true)}
+                  className="bg-purple-500/20 hover:bg-purple-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-purple-300/50"
+                  title="QR Codes"
+                >
+                  <QrCode size={16} />
+                </button>
+                <button
+                  onClick={() => setShowMatriculeModal(true)}
+                  className="bg-teal-500/20 hover:bg-teal-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-teal-300/50"
+                  title="Matricules"
+                >
+                  <Hash size={16} />
+                </button>
+              </div>
+
+              {/* Primary Actions */}
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowCreateEventModal(true)}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/30 hover:border-white/50 font-medium"
+                >
+                  <Calendar size={16} className="mr-2" />
+                  Créer Événement
+                </button>
+
+                <div className="h-6 w-px bg-white/30"></div>
+
+                <button
+                  onClick={exportData}
+                  className="bg-emerald-500/20 hover:bg-emerald-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-emerald-300/50"
+                  title="Exporter Excel"
+                >
+                  <FileSpreadsheet size={16} />
+                </button>
+                <button
+                  onClick={exportJSON}
+                  className="bg-sky-500/20 hover:bg-sky-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-sky-300/50"
+                  title="Exporter JSON"
+                >
+                  <Download size={16} />
+                </button>
+
+                <div className="h-6 w-px bg-white/30"></div>
+
+                <button
+                  onClick={clearAllData}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-white px-3 py-2 rounded-lg transition-all duration-200 flex items-center backdrop-blur-sm border border-white/20 hover:border-red-300/50"
+                  title="Effacer tout"
+                >
+                  <Settings size={16} />
+                </button>
+
+                <button
+                  onClick={onLogout}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center font-medium shadow-lg hover:shadow-xl"
+                >
+                  <LogOut size={16} className="mr-2" />
+                  Déconnexion
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex space-x-1 mb-6">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            // Ne pas afficher l'onglet group-members si aucun groupe n'est sélectionné
-            if (tab.id === 'group-members' && !selectedGroup) return null;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <Icon size={18} className="mr-2" />
-                {tab.label}
-              </button>
-            );
-          })}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Modern Navigation Menu */}
+        <div className="mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              // Ne pas afficher l'onglet group-members si aucun groupe n'est sélectionné
+              if (tab.id === 'group-members' && !selectedGroup) return null;
+
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`group relative overflow-hidden rounded-xl p-4 transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg ${
+                    isActive
+                      ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-xl scale-105'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  {/* Background decoration for active state */}
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-xl"></div>
+                  )}
+
+                  {/* Icon with animation */}
+                  <div className={`relative z-10 flex flex-col items-center space-y-2 transition-transform duration-300 ${
+                    isActive ? 'scale-110' : 'group-hover:scale-110'
+                  }`}>
+                    <div className={`p-2 rounded-lg transition-colors duration-300 ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600'
+                    }`}>
+                      <Icon size={20} />
+                    </div>
+
+                    {/* Label with better typography */}
+                    <span className={`text-xs font-medium text-center leading-tight transition-colors duration-300 ${
+                      isActive ? 'text-white' : 'text-gray-700 group-hover:text-blue-600'
+                    }`}>
+                      {tab.label}
+                    </span>
+                  </div>
+
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white rounded-full"></div>
+                  )}
+
+                  {/* Hover effect */}
+                  {!isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-purple-50/0 group-hover:from-blue-50/50 group-hover:to-purple-50/50 rounded-xl transition-all duration-300"></div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active tab indicator line */}
+          <div className="mt-4 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
         </div>
 
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'registrations' && renderRegistrations()}
         {activeTab === 'events' && renderEvents()}
+        {activeTab === 'event-stats' && (
+          <div className="mb-6">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <PieChart className="mr-2 text-purple-600" />
+                  Statistiques de Présence par Événement
+                </h3>
+              </div>
+              <div className="p-6">
+                <EventAttendanceStats />
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'bureaux' && renderBureaux()}
         {activeTab === 'central-bureau' && <CentralBureauManager />}
         {activeTab === 'group-members' && renderGroupMembers()}
@@ -1053,6 +1193,145 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
             <div className="max-h-[80vh] overflow-y-auto">
               <CentralBureauManager />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Manager Modal */}
+      {showQRCodeModal && (
+        <QRCodeManager onClose={() => setShowQRCodeModal(false)} />
+      )}
+
+      {/* Matricule Manager Modal */}
+      {showMatriculeModal && (
+        <MatriculeManager onClose={() => setShowMatriculeModal(false)} />
+      )}
+
+      {/* Create Event Modal */}
+      {showCreateEventModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-800 flex items-center">
+                  <Calendar className="w-6 h-6 mr-2 text-blue-600" />
+                  Créer un nouvel événement
+                </h3>
+                <button
+                  onClick={() => setShowCreateEventModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="px-6 py-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+                    <input
+                      type="text"
+                      value={newEventData.title}
+                      onChange={(e) => setNewEventData({...newEventData, title: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Titre de l'événement"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Groupe</label>
+                    <select
+                      value={newEventData.groupName}
+                      onChange={(e) => setNewEventData({...newEventData, groupName: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Tous les groupes">Tous les groupes</option>
+                      {YOUTH_GROUPS.map(group => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                    <input
+                      type="date"
+                      value={newEventData.date}
+                      onChange={(e) => setNewEventData({...newEventData, date: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure *</label>
+                    <input
+                      type="time"
+                      value={newEventData.time}
+                      onChange={(e) => setNewEventData({...newEventData, time: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lieu *</label>
+                    <input
+                      type="text"
+                      value={newEventData.location}
+                      onChange={(e) => setNewEventData({...newEventData, location: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Lieu de l'événement"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Budget (FCFA)</label>
+                    <input
+                      type="number"
+                      value={newEventData.budget}
+                      onChange={(e) => setNewEventData({...newEventData, budget: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Budget estimé"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Objectifs</label>
+                  <input
+                    type="text"
+                    value={newEventData.objectives}
+                    onChange={(e) => setNewEventData({...newEventData, objectives: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Objectifs de l'événement"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={newEventData.description}
+                    onChange={(e) => setNewEventData({...newEventData, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Description détaillée de l'événement"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50">
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowCreateEventModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateEvent}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+                >
+                  Créer l'événement
+                </button>
+              </div>
             </div>
           </div>
         </div>
